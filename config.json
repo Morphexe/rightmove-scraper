@@ -1,0 +1,32 @@
+{
+  "locations": [
+    {
+      "name": "Central London",
+      "postcode": "SW1A",
+      "radius": 5
+    },
+    {
+      "name": "East London",
+      "postcode": "E1",
+      "radius": 3
+    }
+  ],
+  "filters": {
+    "minPrice": 200000,
+    "maxPrice": 600000,
+    "minBedrooms": 2,
+    "maxBedrooms": 4,
+    "propertyTypes": ["detached", "semi-detached", "terraced"],
+    "maxDaysSinceAdded": 1
+  },
+  "broadband": {
+    "enabled": true,
+    "minDownloadSpeed": 500,
+    "minUploadSpeed": 50
+  },
+  "scraping": {
+    "maxPagesPerLocation": 3,
+    "delayBetweenRequests": 2000,
+    "rotateProxyEveryNPages": 5
+  }
+}

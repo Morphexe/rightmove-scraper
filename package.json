@@ -1,0 +1,50 @@
+{
+  "name": "rightmove-scraper",
+  "version": "1.0.0",
+  "description": "Personal property research tool for RightMove",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/server/index.ts",
+    "start": "bun run src/server/index.ts",
+    "scrape": "bun run src/index.ts scrape",
+    "scrape:cli": "bun run src/index.ts scrape",
+    "test": "bun test",
+    "test:unit": "bun test tests/unit",
+    "test:integration": "bun test tests/integration",
+    "test:coverage": "bun test --coverage",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "bun run scripts/migrate.ts",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "^1.4.1",
+    "@elysiajs/eden": "^1.4.6",
+    "@elysiajs/static": "^1.4.7",
+    "@tanstack/react-query": "^5.90.19",
+    "@tanstack/react-table": "^8.21.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "commander": "^11.1.0",
+    "dotenv": "^16.3.0",
+    "drizzle-orm": "^0.29.0",
+    "elysia": "^1.4.22",
+    "lucide-react": "^0.562.0",
+    "mysql2": "^3.6.0",
+    "playwright": "^1.40.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "socks-proxy-agent": "^8.0.0",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.4.0",
+    "winston": "^3.11.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^19.2.8",
+    "@types/react-dom": "^19.2.3",
+    "bun-plugin-tailwind": "^0.1.2",
+    "drizzle-kit": "^0.20.0",
+    "tailwindcss": "4"
+  }
+}
