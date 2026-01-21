@@ -9,6 +9,11 @@
       "name": "East London",
       "postcode": "E1",
       "radius": 3
+    },
+    {
+      "name": "Birmingham City Center",
+      "postcode": "B1",
+      "radius": 3
     }
   ],
   "filters": {

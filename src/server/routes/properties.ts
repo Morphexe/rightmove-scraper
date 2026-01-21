@@ -279,6 +279,12 @@ export const propertyRoutes = new Elysia({ prefix: '/api/properties' })
       return error(500, { error: (e as Error).message });
     }
   }, { params: t.Object({ id: t.String() }) })
+
+  .delete('/all', async () => {
+    const db = await getDb();
+    await db.delete(schema.properties);
+    return { success: true, message: 'All properties deleted' };
+  })
   
   .delete('/:id', async ({ params, error }) => {
     const db = await getDb();

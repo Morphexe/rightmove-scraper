@@ -43,119 +43,86 @@ export function PropertyTable({
   }
 
   return (
-    <div className="flex flex-col">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm border-collapse">
-          <thead>
-            <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 text-xs uppercase tracking-wider text-zinc-500 font-medium">
-              <th className="p-4 w-16"></th>
-              <th className="p-4">Property</th>
-              <th className="p-4 w-32">Price</th>
-              <th className="p-4 w-24">Specs</th>
-              <th className="p-4 w-32">Broadband</th>
-              <th className="p-4 w-32">Status</th>
-              <th className="p-4 w-24 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
-            {properties.map((property) => {
-              const images = property.images ? JSON.parse(property.images) : [];
-              const thumbnail = images[0] || null;
-              
-              return (
-                <tr 
-                  key={property.id} 
-                  className="group hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors cursor-pointer"
-                  onClick={() => onSelect(property)}
-                >
-                  <td className="p-4">
-                    <div className="w-16 h-12 rounded-md bg-zinc-100 dark:bg-zinc-800 overflow-hidden relative border border-zinc-200 dark:border-zinc-700">
-                      {thumbnail ? (
-                        <img src={thumbnail} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-zinc-300">
-                           📷
-                        </div>
-                      )}
-                      {property.isMarked && (
-                        <div className="absolute top-0 right-0 p-0.5 bg-amber-400 text-white rounded-bl-md shadow-sm">
-                          <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 20 20">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                          </svg>
-                        </div>
-                      )}
+    <div className="flex flex-col gap-4">
+      <div className="space-y-3">
+        {properties.map((property) => {
+          const images = property.images ? JSON.parse(property.images) : [];
+          const thumbnail = images[0] || null;
+          const imageCount = images.length;
+          
+          return (
+            <div 
+              key={property.id} 
+              className={cn(
+                "group relative rounded-xl border bg-white dark:bg-zinc-900 overflow-hidden transition-all hover:shadow-lg hover:border-zinc-300 dark:hover:border-zinc-600 cursor-pointer",
+                property.isMarked 
+                  ? "border-amber-300 dark:border-amber-700 ring-1 ring-amber-200 dark:ring-amber-800" 
+                  : "border-zinc-200 dark:border-zinc-800"
+              )}
+              onClick={() => onSelect(property)}
+            >
+              <div className="flex flex-col sm:flex-row">
+                <div className="relative w-full sm:w-56 md:w-64 h-40 sm:h-auto sm:aspect-[4/3] flex-shrink-0 bg-zinc-100 dark:bg-zinc-800">
+                  {thumbnail ? (
+                    <img 
+                      src={thumbnail} 
+                      alt={property.title || 'Property'} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-zinc-300 dark:text-zinc-600">
+                      <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
                     </div>
-                  </td>
+                  )}
                   
-                  <td className="p-4 max-w-md">
-                    <div className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                      {property.title || property.address || `Property #${property.id}`}
+                  {imageCount > 1 && (
+                    <div className="absolute bottom-2 right-2 px-2 py-1 text-xs font-medium bg-black/60 text-white rounded-md backdrop-blur-sm">
+                      {imageCount} photos
                     </div>
-                    <div className="text-xs text-zinc-500 font-mono mt-0.5">
-                      {property.postcode} • Listed {formatDate(property.firstScrapedAt)}
+                  )}
+                  
+                  {property.isMarked && (
+                    <div className="absolute top-2 left-2 p-1.5 bg-amber-400 text-white rounded-full shadow-lg">
+                      <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
                     </div>
-                  </td>
-                  
-                  <td className="p-4 font-mono text-emerald-600 dark:text-emerald-400">
-                    {formatPrice(property.price)}
-                  </td>
-                  
-                  <td className="p-4">
-                    <div className="flex items-center gap-3 text-xs text-zinc-600 dark:text-zinc-400">
-                      <span className="flex items-center gap-1" title="Bedrooms">
-                        🛏 {property.bedrooms || '-'}
+                  )}
+                </div>
+                
+                <div className="flex-1 p-4 sm:p-5 flex flex-col min-w-0">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                        {formatPrice(property.price)}
                       </span>
-                      <span className="flex items-center gap-1" title="Bathrooms">
-                        🚿 {property.bathrooms || '-'}
-                      </span>
-                    </div>
-                  </td>
-                  
-                  <td className="p-4">
-                    {property.broadbandDownload ? (
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
-                          {property.broadbandDownload} Mbps
+                      {property.userStatus && property.userStatus !== 'new' && (
+                        <span className={cn(
+                          "px-2.5 py-1 text-xs font-semibold rounded-full capitalize border",
+                          statusStyles[property.userStatus] || "bg-zinc-100 text-zinc-500 border-zinc-200"
+                        )}>
+                          {property.userStatus}
                         </span>
-                        {property.broadbandProvider && (
-                          <span className="text-[10px] text-zinc-400 truncate max-w-[100px]">
-                            {property.broadbandProvider}
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-zinc-300">-</span>
-                    )}
-                  </td>
-                  
-                  <td className="p-4">
-                    {property.userStatus && property.userStatus !== 'new' && (
-                      <span className={cn(
-                        "px-2 py-0.5 text-xs font-medium rounded-full capitalize border",
-                        statusStyles[property.userStatus] || "bg-zinc-100 text-zinc-500 border-zinc-200"
-                      )}>
-                        {property.userStatus}
-                      </span>
-                    )}
-                    {(!property.userStatus || property.userStatus === 'new') && (
-                      <span className="text-xs text-zinc-400">New</span>
-                    )}
-                  </td>
-                  
-                  <td className="p-4 text-right">
-                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           onMark(property.id, !property.isMarked);
                         }}
                         className={cn(
-                          "p-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors",
+                          "p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors",
                           property.isMarked ? "text-amber-500" : "text-zinc-400"
                         )}
-                        title={property.isMarked ? "Unstar" : "Star"}
+                        title={property.isMarked ? "Remove from favorites" : "Add to favorites"}
                       >
-                         ★
+                        <svg className={cn("w-5 h-5", property.isMarked ? "fill-current" : "fill-none stroke-current")} viewBox="0 0 24 24" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                        </svg>
                       </button>
                       
                       <button
@@ -165,21 +132,109 @@ export function PropertyTable({
                             onDelete(property.id);
                           }
                         }}
-                        className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-zinc-400 hover:text-red-500 transition-colors"
-                        title="Delete"
+                        className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-zinc-400 hover:text-red-500 transition-colors"
+                        title="Delete property"
                       >
-                        🗑
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
                       </button>
                     </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  </div>
+                  
+                  <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 text-base leading-snug mb-1 line-clamp-1">
+                    {property.title || property.address || `Property #${property.id}`}
+                  </h3>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
+                    {property.address && property.title ? property.address : null}
+                    {property.postcode && <span className="font-mono ml-1">{property.postcode}</span>}
+                  </p>
+                  
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-zinc-600 dark:text-zinc-400 mb-3">
+                    {property.bedrooms && (
+                      <span className="flex items-center gap-1.5">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                        <span className="font-medium">{property.bedrooms}</span> bed
+                      </span>
+                    )}
+                    {property.bathrooms && (
+                      <span className="flex items-center gap-1.5">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                        </svg>
+                        <span className="font-medium">{property.bathrooms}</span> bath
+                      </span>
+                    )}
+                    {property.sizeSqFt && (
+                      <span className="flex items-center gap-1.5">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                        </svg>
+                        <span className="font-medium">{property.sizeSqFt.toLocaleString()}</span> sq ft
+                      </span>
+                    )}
+                    {property.propertyType && (
+                      <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs font-medium capitalize">
+                        {property.propertyType}
+                      </span>
+                    )}
+                    {property.tenure && (
+                      <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs font-medium capitalize">
+                        {property.tenure}
+                      </span>
+                    )}
+                  </div>
+                  
+                  {property.description && (
+                    <p className="text-sm text-zinc-500 dark:text-zinc-500 line-clamp-2 mb-3 leading-relaxed">
+                      {property.description}
+                    </p>
+                  )}
+                  
+                  <div className="flex items-center justify-between mt-auto pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                    <div className="flex items-center gap-4">
+                      {property.broadbandDownload ? (
+                        <div className="flex items-center gap-1.5">
+                          <svg className={cn(
+                            "w-4 h-4",
+                            property.broadbandDownload >= 500 ? "text-green-500" : 
+                            property.broadbandDownload >= 100 ? "text-amber-500" : "text-red-500"
+                          )} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+                          </svg>
+                          <span className={cn(
+                            "text-sm font-semibold",
+                            property.broadbandDownload >= 500 ? "text-green-600 dark:text-green-400" : 
+                            property.broadbandDownload >= 100 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"
+                          )}>
+                            {property.broadbandDownload} Mbps
+                          </span>
+                          {property.broadbandProvider && (
+                            <span className="text-xs text-zinc-400 hidden sm:inline">
+                              ({property.broadbandProvider})
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-zinc-400">No broadband data</span>
+                      )}
+                    </div>
+                    
+                    <span className="text-xs text-zinc-400 font-mono">
+                      Listed {formatDate(property.firstScrapedAt)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      <div className="flex items-center justify-between px-4 py-4 border-t border-zinc-200 dark:border-zinc-800">
+      <div className="flex items-center justify-between px-1 py-4 border-t border-zinc-200 dark:border-zinc-800">
         <div className="text-sm text-zinc-500">
           Page {page} of {totalPages}
         </div>
@@ -187,14 +242,14 @@ export function PropertyTable({
           <button
             onClick={() => onPageChange(page - 1)}
             disabled={page <= 1}
-            className="px-3 py-1.5 text-sm font-medium rounded-md border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Previous
           </button>
           <button
             onClick={() => onPageChange(page + 1)}
             disabled={page >= totalPages}
-            className="px-3 py-1.5 text-sm font-medium rounded-md border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Next
           </button>

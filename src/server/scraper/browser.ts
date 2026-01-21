@@ -42,6 +42,35 @@ export class BrowserManager {
 
     await context.addInitScript(() => {
       Object.defineProperty(navigator, 'webdriver', { get: () => false });
+
+      Object.defineProperty(navigator, 'plugins', {
+        get: () => [
+          { 0: { type: 'application/pdf', description: 'PDF Viewer', suffixes: 'pdf', enabledPlugin: true } },
+          { 0: { type: 'application/x-google-chrome-pdf', description: 'Chrome PDF Viewer', suffixes: 'pdf', enabledPlugin: true } },
+        ],
+      });
+
+      Object.defineProperty(navigator, 'languages', { get: () => ['en-GB', 'en-US', 'en'] });
+
+      Object.defineProperty(window, 'chrome', { get: () => ({ app: { isInstalled: true }, runtime: {} }) });
+
+      const originalQuery = navigator.permissions?.query;
+      if (navigator.permissions) {
+        Object.defineProperty(navigator.permissions, 'query', {
+          value: (parameters: { name: string }) => {
+            if (parameters.name === 'notifications') {
+              return Promise.resolve({ state: 'prompt' });
+            }
+            return originalQuery ? originalQuery(parameters) : Promise.resolve({ state: 'denied' });
+          },
+        });
+      }
+
+      Object.defineProperty(screen, 'availWidth', { get: () => 1920 });
+      Object.defineProperty(screen, 'availHeight', { get: () => 1040 });
+
+      delete (window as { __rmbot?: boolean }).__rmbot;
+      delete (window as { _rmbot?: boolean })._rmbot;
     });
 
     return context;
@@ -66,6 +95,9 @@ export class BrowserManager {
       args: [
         '--disable-blink-features=AutomationControlled',
         '--disable-features=IsolateOrigins,site-per-process',
+        '--disable-dev-shm-usage',
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
       ],
     });
 
@@ -86,7 +118,7 @@ export class BrowserManager {
     }
 
     log.info('Rotating proxy...');
-    
+
     if (this.context) {
       await this.context.close();
       this.context = null;

@@ -2,7 +2,7 @@ import { BrowserManager, buildSearchUrl, resolveLocationIdentifier, parseSearchR
 import { DeduplicationService } from './deduplication.js';
 import { ScrapeTracker } from './scrape-tracker.js';
 import { PropertyService } from './property-service.js';
-import { fetchBroadbandFromUrl } from './broadband/index.js';
+import { fetchBroadbandFromUrl, BroadbandChecker } from './broadband/index.js';
 import { ConfigService, type FullSearchConfig } from './config-service.js';
 import { isProxyEnabled } from '../config/index.js';
 import { ProxyManager } from '../proxy/index.js';
@@ -292,39 +292,57 @@ export class ScrapeService {
     delayMs: number,
     minBroadband?: number,
   ): Promise<RawPropertyData | null> {
-    const url = property.url.includes('#') ? property.url : `${property.url}#/?channel=RES_BUY`;
-    
+    const url = property.url.includes('#') ? property.url : `${property.url}`;
+
     try {
       log.info(`  → Fetching details for: ${property.id}`);
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
-      await page.waitForSelector('script', { timeout: 10000 }).catch(() => {});
-      await page.waitForTimeout(delayMs);
-      
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+      await page.waitForTimeout(3000);
+
       const details = await parsePropertyDetail(page);
-      
+
       const merged: RawPropertyData = {
         ...property,
         ...details,
         id: property.id,
         url: property.url,
       };
-      
-      if (details.broadbandCheckerUrl) {
+
+      // Try to get broadband data - first from URL, then fallback to postcode estimation
+      if (details.broadbandCheckerUrl || details.postcode) {
         log.debug(`    Fetching broadband data...`);
-        const broadband = await fetchBroadbandFromUrl(details.broadbandCheckerUrl);
-        if (broadband) {
-          merged.broadbandDownload = broadband.downloadSpeed;
-          merged.broadbandUpload = broadband.uploadSpeed;
-          merged.broadbandProvider = broadband.provider;
-          log.info(`    Broadband: ${broadband.downloadSpeed}Mbps down, ${broadband.uploadSpeed}Mbps up`);
-          
-          if (minBroadband && broadband.downloadSpeed < minBroadband) {
-            log.info(`    ✗ Skipped: broadband ${broadband.downloadSpeed}Mbps < ${minBroadband}Mbps min`);
+        let broadbandData = null;
+
+        // Try the URL first if available
+        if (details.broadbandCheckerUrl) {
+          broadbandData = await fetchBroadbandFromUrl(details.broadbandCheckerUrl);
+        }
+
+        // Fallback: use BroadbandChecker with postcode if URL didn't work
+        if (!broadbandData && details.postcode) {
+          const checker = new BroadbandChecker(minBroadband || 0);
+          const speed = await checker.checkSpeed(details.postcode);
+          broadbandData = {
+            downloadSpeed: speed.downloadSpeed,
+            uploadSpeed: speed.uploadSpeed,
+            provider: speed.provider || 'estimated',
+          };
+        }
+
+        if (broadbandData) {
+          merged.broadbandDownload = broadbandData.downloadSpeed;
+          merged.broadbandUpload = broadbandData.uploadSpeed;
+          merged.broadbandProvider = broadbandData.provider;
+          log.info(`    Broadband: ${broadbandData.downloadSpeed}Mbps down, ${broadbandData.uploadSpeed}Mbps up`);
+
+          if (minBroadband && broadbandData.downloadSpeed < minBroadband) {
+            log.info(`    ✗ Skipped: broadband ${broadbandData.downloadSpeed}Mbps < ${minBroadband}Mbps min`);
             return null;
           }
         }
       }
-      
+
       return merged;
     } catch (error) {
       log.warn(`  ✗ Failed to fetch details for ${property.id}: ${error}`);
