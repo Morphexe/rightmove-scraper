@@ -13,12 +13,14 @@ export interface Property {
   bedrooms: number | null;
   bathrooms: number | null;
   broadbandDownload: number | null;
+  broadbandUpload: number | null;
   broadbandProvider: string | null;
   images: string | null;
   description: string | null;
   agentName: string | null;
   agentPhone: string | null;
   firstScrapedAt: Date | string;
+  listedDate: Date | string | null;
   userStatus: string | null;
   userRating: number | null;
   userNotes: string | null;
@@ -28,6 +30,15 @@ export interface Property {
   sizeSqFt: number | null;
   tenure: string | null;
   keyFeatures: string | null;
+  nearestStationName: string | null;
+  nearestStationWalkMins: number | null;
+  nearestAldiWalkMins: number | null;
+  nearestLidlWalkMins: number | null;
+  nearestCoopWalkMins: number | null;
+  nearestGpWalkMins: number | null;
+  nearestHospitalWalkMins: number | null;
+  commuteTimes: Array<{ name: string; drivingMins: number; transitMins?: number }> | null;
+  enrichedAt: string | null;
 }
 
 interface PropertyModalProps {
@@ -54,6 +65,36 @@ export function PropertyModal({ property, isOpen, onClose, onUpdate }: PropertyM
 
   const images = property.images ? JSON.parse(property.images) : [];
   const features = property.keyFeatures ? JSON.parse(property.keyFeatures) : [];
+
+  const getDaysOnMarket = () => {
+    const dateStr = property.listedDate || property.firstScrapedAt;
+    if (!dateStr) return null;
+    const listed = new Date(dateStr);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - listed.getTime());
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const formatListedDate = () => {
+    const dateStr = property.listedDate || property.firstScrapedAt;
+    if (!dateStr) return null;
+    return new Date(dateStr).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  const formatMins = (mins: number | null) => {
+    if (!mins) return null;
+    if (mins < 60) return `${mins} min`;
+    const hours = Math.floor(mins / 60);
+    const remainingMins = mins % 60;
+    return remainingMins > 0 ? `${hours}h ${remainingMins}m` : `${hours}h`;
+  };
+
+  const daysOnMarket = getDaysOnMarket();
+  const listedDateStr = formatListedDate();
 
   const handleSave = () => {
     onUpdate(property.id, {
@@ -87,16 +128,35 @@ export function PropertyModal({ property, isOpen, onClose, onUpdate }: PropertyM
             
             <div className="space-y-6">
               <div>
-                <h2 className="text-2xl font-serif font-medium text-zinc-900 dark:text-zinc-100 leading-tight">
-                  {property.title || property.address}
-                </h2>
-                <div className="flex items-baseline gap-4 mt-2">
+                <div className="flex items-start justify-between gap-4">
+                  <h2 className="text-2xl font-serif font-medium text-zinc-900 dark:text-zinc-100 leading-tight">
+                    {property.title || property.address}
+                  </h2>
+                  {daysOnMarket !== null && (
+                    <div className={cn(
+                      "px-3 py-1.5 rounded-lg text-sm font-semibold flex flex-col items-center",
+                      daysOnMarket <= 3 ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400" :
+                      daysOnMarket <= 7 ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400" :
+                      daysOnMarket <= 14 ? "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400" :
+                      "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
+                    )}>
+                      <span className="text-lg">{daysOnMarket}</span>
+                      <span className="text-[10px] uppercase tracking-wide">days</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 mt-2 flex-wrap">
                   <span className="text-3xl font-light text-emerald-600 dark:text-emerald-400">
                     {formatPrice(property.price)}
                   </span>
                   {property.postcode && (
                     <span className="px-2 py-0.5 rounded text-sm font-mono bg-zinc-100 dark:bg-zinc-800 text-zinc-500 border border-zinc-200 dark:border-zinc-700">
                       {property.postcode}
+                    </span>
+                  )}
+                  {listedDateStr && (
+                    <span className="text-sm text-zinc-500">
+                      Listed {listedDateStr}
                     </span>
                   )}
                 </div>
@@ -188,6 +248,83 @@ export function PropertyModal({ property, isOpen, onClose, onUpdate }: PropertyM
                 />
               </div>
             </div>
+
+            {property.enrichedAt && (
+              <div className="pt-6 border-t border-zinc-200 dark:border-zinc-800 space-y-4">
+                <h3 className="text-sm font-medium uppercase tracking-wider text-zinc-400">Location Data</h3>
+                
+                {(property.nearestAldiWalkMins || property.nearestLidlWalkMins || property.nearestCoopWalkMins) && (
+                  <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20">
+                    <p className="text-xs font-medium text-blue-800 dark:text-blue-400 mb-2">Supermarkets</p>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      {property.nearestAldiWalkMins && (
+                        <div className="text-center">
+                          <span className="font-bold text-blue-600">{formatMins(property.nearestAldiWalkMins)}</span>
+                          <p className="text-blue-500/70">ALDI</p>
+                        </div>
+                      )}
+                      {property.nearestLidlWalkMins && (
+                        <div className="text-center">
+                          <span className="font-bold text-yellow-600">{formatMins(property.nearestLidlWalkMins)}</span>
+                          <p className="text-yellow-500/70">LIDL</p>
+                        </div>
+                      )}
+                      {property.nearestCoopWalkMins && (
+                        <div className="text-center">
+                          <span className="font-bold text-green-600">{formatMins(property.nearestCoopWalkMins)}</span>
+                          <p className="text-green-500/70">COOP</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {property.nearestStationWalkMins && (
+                  <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/20">
+                    <p className="text-xs font-medium text-purple-800 dark:text-purple-400">Nearest Station</p>
+                    <p className="text-sm font-bold text-purple-900 dark:text-purple-300">
+                      {property.nearestStationName}
+                    </p>
+                    <p className="text-xs text-purple-600/70">{formatMins(property.nearestStationWalkMins)} walk</p>
+                  </div>
+                )}
+
+                {property.commuteTimes && property.commuteTimes.length > 0 && (
+                  <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/20">
+                    <p className="text-xs font-medium text-orange-800 dark:text-orange-400 mb-2">Commute Times</p>
+                    <div className="space-y-1.5">
+                      {property.commuteTimes.map((commute, i) => (
+                        <div key={i} className="flex justify-between text-xs">
+                          <span className="text-orange-700 dark:text-orange-300">{commute.name}</span>
+                          <span className="text-orange-900 dark:text-orange-200 font-medium">
+                            {formatMins(commute.drivingMins)}
+                            {commute.transitMins && (
+                              <span className="text-orange-500/70 ml-1">
+                                ({formatMins(commute.transitMins)} transit)
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(property.nearestGpWalkMins || property.nearestHospitalWalkMins) && (
+                  <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20">
+                    <p className="text-xs font-medium text-rose-800 dark:text-rose-400 mb-1">Healthcare</p>
+                    <div className="flex gap-4 text-xs">
+                      {property.nearestGpWalkMins && (
+                        <span className="text-rose-600">GP: {formatMins(property.nearestGpWalkMins)}</span>
+                      )}
+                      {property.nearestHospitalWalkMins && (
+                        <span className="text-rose-600">Hospital: {formatMins(property.nearestHospitalWalkMins)}</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="pt-6 border-t border-zinc-200 dark:border-zinc-800 space-y-4">
               <h3 className="text-sm font-medium uppercase tracking-wider text-zinc-400">Agent Details</h3>

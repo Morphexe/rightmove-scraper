@@ -1,8 +1,7 @@
-import { useState } from 'react';
 import { 
-  Wifi, Train, Car, MapPin, Bed, Bath, Square,
-  Heart, ExternalLink, ChevronDown, ChevronUp,
-  Building2, Stethoscope, Mail, ShoppingCart, Sparkles, Loader2
+  Wifi, Train, Car, Bed, Bath, Square,
+  Heart, ExternalLink, ShoppingCart, Sparkles, Loader2,
+  Plane, Clock, Building2
 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@client/api/client';
@@ -27,6 +26,8 @@ interface Property {
   nearestAldiWalkMins?: number | null;
   nearestLidlName?: string | null;
   nearestLidlWalkMins?: number | null;
+  nearestCoopName?: string | null;
+  nearestCoopWalkMins?: number | null;
   nearestPostOfficeWalkMins?: number | null;
   nearestDentistWalkMins?: number | null;
   nearestHospitalWalkMins?: number | null;
@@ -34,6 +35,8 @@ interface Property {
   commuteTimes?: Array<{ name: string; drivingMins: number; transitMins?: number }> | null;
   isMarked?: boolean;
   enrichedAt?: string | null;
+  listedDate?: string | null;
+  firstScrapedAt?: string | null;
   latitude?: string | null;
   longitude?: string | null;
 }
@@ -44,7 +47,6 @@ interface PropertyCardProps {
 }
 
 export function PropertyCard({ property, onOpenDetail }: PropertyCardProps) {
-  const [expanded, setExpanded] = useState(false);
   const queryClient = useQueryClient();
   
   const images = property.images ? JSON.parse(property.images) : [];
@@ -77,13 +79,31 @@ export function PropertyCard({ property, onOpenDetail }: PropertyCardProps) {
     }).format(price);
   };
   
-  const formatDistance = (mins?: number | null) => {
+  const formatMins = (mins?: number | null) => {
     if (!mins) return null;
-    if (mins < 60) return `${mins}min`;
+    if (mins < 60) return `${mins}m`;
     const hours = Math.floor(mins / 60);
     const remainingMins = mins % 60;
     return remainingMins > 0 ? `${hours}h${remainingMins}m` : `${hours}h`;
   };
+
+  const getDaysOnMarket = () => {
+    const dateStr = property.listedDate || property.firstScrapedAt;
+    if (!dateStr) return null;
+    const listed = new Date(dateStr);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - listed.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const daysOnMarket = getDaysOnMarket();
+
+  const hasGroceryData = property.nearestAldiWalkMins || property.nearestLidlWalkMins || property.nearestCoopWalkMins;
+  const airportCommute = property.commuteTimes?.find(c => c.name.toLowerCase().includes('airport'));
+  const cityCommute = property.commuteTimes?.find(c => 
+    c.name.toLowerCase().includes('city') || c.name.toLowerCase().includes('piccadilly')
+  );
   
   return (
     <div className={cn(
@@ -93,7 +113,7 @@ export function PropertyCard({ property, onOpenDetail }: PropertyCardProps) {
       <div className="flex gap-4">
         {mainImage && (
           <div 
-            className="w-32 h-24 rounded-md overflow-hidden flex-shrink-0 cursor-pointer"
+            className="w-36 h-28 rounded-md overflow-hidden flex-shrink-0 cursor-pointer relative"
             onClick={() => onOpenDetail?.(property)}
           >
             <img 
@@ -101,13 +121,24 @@ export function PropertyCard({ property, onOpenDetail }: PropertyCardProps) {
               alt={property.title || 'Property'} 
               className="w-full h-full object-cover group-hover:scale-105 transition-transform"
             />
+            {daysOnMarket !== null && (
+              <div className={cn(
+                "absolute top-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-medium",
+                daysOnMarket <= 3 ? "bg-green-500 text-white" :
+                daysOnMarket <= 7 ? "bg-yellow-500 text-black" :
+                daysOnMarket <= 14 ? "bg-orange-500 text-white" :
+                "bg-red-500 text-white"
+              )}>
+                {daysOnMarket}d
+              </div>
+            )}
           </div>
         )}
         
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {property.price && (
                   <span className="font-bold text-lg text-primary">
                     {formatPrice(property.price)}
@@ -128,7 +159,17 @@ export function PropertyCard({ property, onOpenDetail }: PropertyCardProps) {
                 {property.sizeSqFt && (
                   <span className="flex items-center gap-1 text-sm text-muted-foreground">
                     <Square className="h-3.5 w-3.5" />
-                    {property.sizeSqFt} sqft
+                    {property.sizeSqFt}
+                  </span>
+                )}
+                {property.broadbandDownload && (
+                  <span className={cn(
+                    "flex items-center gap-1 text-sm font-medium",
+                    property.broadbandDownload >= 500 ? "text-green-500" : 
+                    property.broadbandDownload >= 100 ? "text-yellow-500" : "text-red-500"
+                  )}>
+                    <Wifi className="h-3.5 w-3.5" />
+                    {property.broadbandDownload}
                   </span>
                 )}
               </div>
@@ -173,103 +214,77 @@ export function PropertyCard({ property, onOpenDetail }: PropertyCardProps) {
             </div>
           </div>
           
-          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs">
-            {property.broadbandDownload && (
-              <span className={cn(
-                "flex items-center gap-1",
-                property.broadbandDownload >= 500 ? "text-green-500" : 
-                property.broadbandDownload >= 100 ? "text-yellow-500" : "text-red-500"
-              )}>
-                <Wifi className="h-3 w-3" />
-                {property.broadbandDownload} Mbps
-              </span>
-            )}
-            
-            {property.nearestStationWalkMins && (
-              <span className="flex items-center gap-1 text-muted-foreground">
-                <Train className="h-3 w-3" />
-                {formatDistance(property.nearestStationWalkMins)} walk
-              </span>
-            )}
-            
-            {property.commuteTimes?.map((commute, i) => (
-              <span key={i} className="flex items-center gap-1 text-muted-foreground">
-                <Car className="h-3 w-3" />
-                {commute.name}: {formatDistance(commute.drivingMins)}
-                {commute.transitMins && ` (${formatDistance(commute.transitMins)} transit)`}
-              </span>
-            ))}
-          </div>
-          
           {property.enrichedAt && (
-            <button
-              onClick={() => setExpanded(!expanded)}
-              className="flex items-center gap-1 mt-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-              {expanded ? 'Less' : 'More'} details
-            </button>
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2 text-xs">
+              {hasGroceryData && (
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <ShoppingCart className="h-3 w-3" />
+                  <span className="flex gap-1.5">
+                    {property.nearestAldiWalkMins && (
+                      <span className="text-blue-500">A:{formatMins(property.nearestAldiWalkMins)}</span>
+                    )}
+                    {property.nearestLidlWalkMins && (
+                      <span className="text-yellow-600">L:{formatMins(property.nearestLidlWalkMins)}</span>
+                    )}
+                    {property.nearestCoopWalkMins && (
+                      <span className="text-green-600">C:{formatMins(property.nearestCoopWalkMins)}</span>
+                    )}
+                  </span>
+                </div>
+              )}
+              
+              {property.nearestStationWalkMins && (
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Train className="h-3 w-3" />
+                  <span>{formatMins(property.nearestStationWalkMins)}</span>
+                  {property.nearestStationName && (
+                    <span className="text-muted-foreground/60 max-w-[100px] truncate">
+                      {property.nearestStationName}
+                    </span>
+                  )}
+                </div>
+              )}
+              
+              {airportCommute && (
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Plane className="h-3 w-3" />
+                  <span>{formatMins(airportCommute.drivingMins)}</span>
+                  {airportCommute.transitMins && (
+                    <span className="text-muted-foreground/60">
+                      ({formatMins(airportCommute.transitMins)})
+                    </span>
+                  )}
+                </div>
+              )}
+              
+              {cityCommute && (
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Building2 className="h-3 w-3" />
+                  <span>{formatMins(cityCommute.drivingMins)}</span>
+                  {cityCommute.transitMins && (
+                    <span className="text-muted-foreground/60">
+                      ({formatMins(cityCommute.transitMins)})
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {property.nearestGpWalkMins && (
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <span className="text-[10px]">GP</span>
+                  <span>{formatMins(property.nearestGpWalkMins)}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!property.enrichedAt && canEnrich && (
+            <p className="text-xs text-muted-foreground/60 mt-2 italic">
+              Click sparkle to enrich with location data
+            </p>
           )}
         </div>
       </div>
-      
-      {expanded && property.enrichedAt && (
-        <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          {(property.nearestAldiWalkMins || property.nearestLidlWalkMins) && (
-            <div className="flex items-start gap-2">
-              <ShoppingCart className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="font-medium">Groceries</p>
-                {property.nearestAldiWalkMins && (
-                  <p className="text-muted-foreground">ALDI: {formatDistance(property.nearestAldiWalkMins)}</p>
-                )}
-                {property.nearestLidlWalkMins && (
-                  <p className="text-muted-foreground">LIDL: {formatDistance(property.nearestLidlWalkMins)}</p>
-                )}
-              </div>
-            </div>
-          )}
-          
-          {property.nearestStationWalkMins && (
-            <div className="flex items-start gap-2">
-              <Train className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="font-medium">Station</p>
-                <p className="text-muted-foreground">{property.nearestStationName}</p>
-                <p className="text-muted-foreground">{formatDistance(property.nearestStationWalkMins)} walk</p>
-              </div>
-            </div>
-          )}
-          
-          {(property.nearestGpWalkMins || property.nearestDentistWalkMins || property.nearestHospitalWalkMins) && (
-            <div className="flex items-start gap-2">
-              <Stethoscope className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="font-medium">Healthcare</p>
-                {property.nearestGpWalkMins && (
-                  <p className="text-muted-foreground">GP: {formatDistance(property.nearestGpWalkMins)}</p>
-                )}
-                {property.nearestDentistWalkMins && (
-                  <p className="text-muted-foreground">Dentist: {formatDistance(property.nearestDentistWalkMins)}</p>
-                )}
-                {property.nearestHospitalWalkMins && (
-                  <p className="text-muted-foreground">Hospital: {formatDistance(property.nearestHospitalWalkMins)}</p>
-                )}
-              </div>
-            </div>
-          )}
-          
-          {property.nearestPostOfficeWalkMins && (
-            <div className="flex items-start gap-2">
-              <Mail className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="font-medium">Post Office</p>
-                <p className="text-muted-foreground">{formatDistance(property.nearestPostOfficeWalkMins)} walk</p>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

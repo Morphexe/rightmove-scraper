@@ -1,6 +1,23 @@
 import { Property } from './PropertyModal';
 import { cn, formatPrice, formatDate } from '../../lib/utils';
 
+const formatMins = (mins: number | null | undefined) => {
+  if (!mins) return '-';
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  const remainingMins = mins % 60;
+  return remainingMins > 0 ? `${hours}h${remainingMins}m` : `${hours}h`;
+};
+
+const getDaysOnMarket = (property: Property) => {
+  const dateStr = property.listedDate || property.firstScrapedAt;
+  if (!dateStr) return null;
+  const listed = new Date(dateStr);
+  const now = new Date();
+  const diffTime = Math.abs(now.getTime() - listed.getTime());
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};
+
 interface PropertyTableProps {
   properties: Property[];
   onSelect: (property: Property) => void;
@@ -49,6 +66,11 @@ export function PropertyTable({
           const images = property.images ? JSON.parse(property.images) : [];
           const thumbnail = images[0] || null;
           const imageCount = images.length;
+          const daysOnMarket = getDaysOnMarket(property);
+          const airportCommute = property.commuteTimes?.find(c => c.name.toLowerCase().includes('airport'));
+          const cityCommute = property.commuteTimes?.find(c => 
+            c.name.toLowerCase().includes('city') || c.name.toLowerCase().includes('piccadilly')
+          );
           
           return (
             <div 
@@ -80,6 +102,18 @@ export function PropertyTable({
                   {imageCount > 1 && (
                     <div className="absolute bottom-2 right-2 px-2 py-1 text-xs font-medium bg-black/60 text-white rounded-md backdrop-blur-sm">
                       {imageCount} photos
+                    </div>
+                  )}
+                  
+                  {daysOnMarket !== null && (
+                    <div className={cn(
+                      "absolute top-2 right-2 px-2 py-1 text-xs font-bold rounded-md",
+                      daysOnMarket <= 3 ? "bg-green-500 text-white" :
+                      daysOnMarket <= 7 ? "bg-yellow-500 text-black" :
+                      daysOnMarket <= 14 ? "bg-orange-500 text-white" :
+                      "bg-red-500 text-white"
+                    )}>
+                      {daysOnMarket}d
                     </div>
                   )}
                   
@@ -194,37 +228,64 @@ export function PropertyTable({
                     </p>
                   )}
                   
-                  <div className="flex items-center justify-between mt-auto pt-3 border-t border-zinc-100 dark:border-zinc-800">
-                    <div className="flex items-center gap-4">
-                      {property.broadbandDownload ? (
-                        <div className="flex items-center gap-1.5">
-                          <svg className={cn(
-                            "w-4 h-4",
-                            property.broadbandDownload >= 500 ? "text-green-500" : 
-                            property.broadbandDownload >= 100 ? "text-amber-500" : "text-red-500"
-                          )} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
-                          </svg>
-                          <span className={cn(
-                            "text-sm font-semibold",
-                            property.broadbandDownload >= 500 ? "text-green-600 dark:text-green-400" : 
-                            property.broadbandDownload >= 100 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"
-                          )}>
-                            {property.broadbandDownload} Mbps
-                          </span>
-                          {property.broadbandProvider && (
-                            <span className="text-xs text-zinc-400 hidden sm:inline">
-                              ({property.broadbandProvider})
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-zinc-400">No broadband data</span>
-                      )}
-                    </div>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-auto pt-3 border-t border-zinc-100 dark:border-zinc-800 text-xs">
+                    {property.broadbandDownload ? (
+                      <div className="flex items-center gap-1">
+                        <svg className={cn(
+                          "w-3.5 h-3.5",
+                          property.broadbandDownload >= 500 ? "text-green-500" : 
+                          property.broadbandDownload >= 100 ? "text-amber-500" : "text-red-500"
+                        )} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+                        </svg>
+                        <span className={cn(
+                          "font-semibold",
+                          property.broadbandDownload >= 500 ? "text-green-600 dark:text-green-400" : 
+                          property.broadbandDownload >= 100 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"
+                        )}>
+                          {property.broadbandDownload}Mb
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-zinc-400">No BB</span>
+                    )}
+
+                    {property.enrichedAt && (
+                      <>
+                        {(property.nearestAldiWalkMins || property.nearestLidlWalkMins || property.nearestCoopWalkMins) && (
+                          <div className="flex items-center gap-1 text-zinc-500">
+                            <span className="font-medium">Shops:</span>
+                            {property.nearestAldiWalkMins && <span className="text-blue-500">A:{formatMins(property.nearestAldiWalkMins)}</span>}
+                            {property.nearestLidlWalkMins && <span className="text-yellow-600">L:{formatMins(property.nearestLidlWalkMins)}</span>}
+                            {property.nearestCoopWalkMins && <span className="text-green-600">C:{formatMins(property.nearestCoopWalkMins)}</span>}
+                          </div>
+                        )}
+
+                        {property.nearestStationWalkMins && (
+                          <div className="flex items-center gap-1 text-zinc-500">
+                            <span className="font-medium">Stn:</span>
+                            <span>{formatMins(property.nearestStationWalkMins)}</span>
+                          </div>
+                        )}
+
+                        {airportCommute && (
+                          <div className="flex items-center gap-1 text-zinc-500">
+                            <span className="font-medium">MAN:</span>
+                            <span>{formatMins(airportCommute.drivingMins)}</span>
+                          </div>
+                        )}
+
+                        {cityCommute && (
+                          <div className="flex items-center gap-1 text-zinc-500">
+                            <span className="font-medium">City:</span>
+                            <span>{formatMins(cityCommute.drivingMins)}</span>
+                          </div>
+                        )}
+                      </>
+                    )}
                     
-                    <span className="text-xs text-zinc-400 font-mono">
-                      Listed {formatDate(property.firstScrapedAt)}
+                    <span className="text-zinc-400 font-mono ml-auto">
+                      {formatDate(property.listedDate || property.firstScrapedAt)}
                     </span>
                   </div>
                 </div>

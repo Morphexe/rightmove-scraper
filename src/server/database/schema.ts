@@ -75,6 +75,9 @@ export const properties = mysqlTable('properties', {
   nearestLidlName: varchar('nearest_lidl_name', { length: 200 }),
   nearestLidlDistance: int('nearest_lidl_distance'),
   nearestLidlWalkMins: int('nearest_lidl_walk_mins'),
+  nearestCoopName: varchar('nearest_coop_name', { length: 200 }),
+  nearestCoopDistance: int('nearest_coop_distance'),
+  nearestCoopWalkMins: int('nearest_coop_walk_mins'),
   
   nearestPostOfficeDistance: int('nearest_post_office_distance'),
   nearestPostOfficeWalkMins: int('nearest_post_office_walk_mins'),

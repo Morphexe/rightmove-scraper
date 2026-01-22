@@ -1,37 +1,59 @@
 {
   "locations": [
     {
-      "name": "Central London",
-      "postcode": "SW1A",
+      "name": "Manchester City Centre",
+      "postcode": "M1",
       "radius": 5
     },
     {
-      "name": "East London",
-      "postcode": "E1",
+      "name": "South Manchester",
+      "postcode": "M20",
       "radius": 3
     },
     {
-      "name": "Birmingham City Center",
-      "postcode": "B1",
-      "radius": 3
+      "name": "Stockport",
+      "postcode": "SK1",
+      "radius": 5
+    },
+    {
+      "name": "Sale & Altrincham",
+      "postcode": "M33",
+      "radius": 5
     }
   ],
   "filters": {
-    "minPrice": 200000,
-    "maxPrice": 600000,
+    "minPrice": 150000,
+    "maxPrice": 400000,
     "minBedrooms": 2,
     "maxBedrooms": 4,
     "propertyTypes": ["detached", "semi-detached", "terraced"],
-    "maxDaysSinceAdded": 1
+    "maxDaysSinceAdded": 7
   },
   "broadband": {
     "enabled": true,
-    "minDownloadSpeed": 500,
-    "minUploadSpeed": 50
+    "minDownloadSpeed": 100,
+    "minUploadSpeed": 20
   },
   "scraping": {
-    "maxPagesPerLocation": 3,
+    "maxPagesPerLocation": 5,
     "delayBetweenRequests": 2000,
     "rotateProxyEveryNPages": 5
-  }
+  },
+  "commutePoints": [
+    {
+      "name": "Manchester Airport",
+      "lat": 53.3588,
+      "lng": -2.2727
+    },
+    {
+      "name": "Manchester Piccadilly",
+      "lat": 53.4774,
+      "lng": -2.2309
+    },
+    {
+      "name": "Manchester City Centre",
+      "lat": 53.4808,
+      "lng": -2.2426
+    }
+  ]
 }

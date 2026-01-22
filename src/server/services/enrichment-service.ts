@@ -1,146 +1,91 @@
-import { eq, isNull, and } from 'drizzle-orm';
+import { eq, isNull, and, isNotNull, sql } from 'drizzle-orm';
 import { getDb, schema } from '../database/index.js';
-import { GooglePlacesService, type CommuteResult } from './google/places.js';
 import { ConfigService } from './config-service.js';
 import { log } from '../utils/logger.js';
+import { 
+  createDefaultPipeline, 
+  createCustomPipeline,
+  MANCHESTER_COMMUTE_POINTS,
+  type EnrichmentConfig,
+  type EnrichmentPipelineResult 
+} from './enrichment/index.js';
 
 export class EnrichmentService {
-  private googlePlaces: GooglePlacesService;
   private configService: ConfigService;
-  
+
   constructor() {
-    this.googlePlaces = new GooglePlacesService();
     this.configService = new ConfigService();
   }
-  
-  async enrichProperty(propertyId: number): Promise<boolean> {
-    const db = await getDb();
-    
-    const [property] = await db
-      .select()
-      .from(schema.properties)
-      .where(eq(schema.properties.id, propertyId))
-      .limit(1);
-    
-    if (!property) {
-      log.warn(`Property ${propertyId} not found`);
-      return false;
-    }
-    
-    if (!property.latitude || !property.longitude) {
-      log.warn(`Property ${propertyId} has no coordinates`);
-      return false;
-    }
-    
-    const lat = Number(property.latitude);
-    const lng = Number(property.longitude);
-    
+
+  private async getEnrichmentConfig(): Promise<Partial<EnrichmentConfig>> {
     const config = await this.configService.getActiveConfig();
-    const commutePoints = config?.commutePoints || [];
     
-    log.info(`Enriching property ${propertyId} at ${lat}, ${lng}`);
+    const commutePoints = config?.commutePoints?.length 
+      ? config.commutePoints 
+      : MANCHESTER_COMMUTE_POINTS;
+
+    return {
+      commutePoints,
+      groceryStores: ['ALDI', 'LIDL', 'COOP', 'Co-op'],
+      maxSearchRadiusMeters: 10000,
+    };
+  }
+
+  async enrichProperty(propertyId: number): Promise<boolean> {
+    const config = await this.getEnrichmentConfig();
+    const pipeline = createDefaultPipeline(config);
     
-    const [
-      trainStation,
-      aldi,
-      lidl,
-      postOffice,
-      dentist,
-      hospital,
-      gp,
-    ] = await Promise.all([
-      this.googlePlaces.findNearestTrainStation(lat, lng),
-      this.googlePlaces.findNearestGroceryByName(lat, lng, 'ALDI'),
-      this.googlePlaces.findNearestGroceryByName(lat, lng, 'LIDL'),
-      this.googlePlaces.findNearbyPlaces(lat, lng, 'postOffice', 5000).then(r => r[0]),
-      this.googlePlaces.findNearbyPlaces(lat, lng, 'dentist', 5000).then(r => r[0]),
-      this.googlePlaces.findNearbyPlaces(lat, lng, 'hospital', 10000).then(r => r[0]),
-      this.googlePlaces.findNearbyPlaces(lat, lng, 'doctor', 5000).then(r => r[0]),
-    ]);
+    log.info(`Enriching property ${propertyId} with pipeline: ${pipeline.getRegisteredEnrichers().join(', ')}`);
     
-    const commuteTimes: Array<{ name: string; drivingMins: number; transitMins?: number }> = [];
+    const result = await pipeline.enrichProperty(propertyId);
     
-    for (const point of commutePoints) {
-      const commute = await this.googlePlaces.getCommuteTime(
-        lat, lng,
-        point.lat, point.lng,
-        point.name
-      );
-      
-      if (commute) {
-        commuteTimes.push({
-          name: commute.destination,
-          drivingMins: commute.drivingMinutes,
-          transitMins: commute.transitMinutes,
-        });
-      }
+    if (!result.success && result.errors.length > 0) {
+      log.warn(`Property ${propertyId} enrichment had errors: ${result.errors.map(e => e.error).join(', ')}`);
     }
     
-    await db
-      .update(schema.properties)
-      .set({
-        enrichedAt: new Date(),
-        
-        nearestStationName: trainStation?.name,
-        nearestStationDistance: trainStation?.distanceMeters,
-        nearestStationWalkMins: trainStation?.walkingMinutes,
-        
-        nearestAldiName: aldi?.name,
-        nearestAldiDistance: aldi?.distanceMeters,
-        nearestAldiWalkMins: aldi?.walkingMinutes,
-        
-        nearestLidlName: lidl?.name,
-        nearestLidlDistance: lidl?.distanceMeters,
-        nearestLidlWalkMins: lidl?.walkingMinutes,
-        
-        nearestPostOfficeDistance: postOffice?.distanceMeters,
-        nearestPostOfficeWalkMins: postOffice?.walkingMinutes,
-        
-        nearestDentistDistance: dentist?.distanceMeters,
-        nearestDentistWalkMins: dentist?.walkingMinutes,
-        
-        nearestHospitalDistance: hospital?.distanceMeters,
-        nearestHospitalWalkMins: hospital?.walkingMinutes,
-        
-        nearestGpDistance: gp?.distanceMeters,
-        nearestGpWalkMins: gp?.walkingMinutes,
-        
-        commuteTimes: commuteTimes.length > 0 ? commuteTimes : null,
-      })
-      .where(eq(schema.properties.id, propertyId));
-    
-    log.info(`Enriched property ${propertyId}`);
-    return true;
+    return result.enrichersRun.length > 0;
   }
-  
+
+  async enrichPropertyWithEnrichers(
+    propertyId: number, 
+    enricherNames: string[]
+  ): Promise<EnrichmentPipelineResult> {
+    const config = await this.getEnrichmentConfig();
+    const pipeline = createCustomPipeline(enricherNames, config);
+    
+    log.info(`Enriching property ${propertyId} with specific enrichers: ${enricherNames.join(', ')}`);
+    
+    return pipeline.enrichProperty(propertyId);
+  }
+
   async enrichUnenrichedProperties(limit: number = 10): Promise<number> {
     const db = await getDb();
-    
+
     const properties = await db
       .select({ id: schema.properties.id })
       .from(schema.properties)
       .where(and(
         isNull(schema.properties.enrichedAt),
-        schema.properties.latitude !== null,
-        schema.properties.longitude !== null
+        isNotNull(schema.properties.latitude),
+        isNotNull(schema.properties.longitude)
       ))
       .limit(limit);
+
+    const config = await this.getEnrichmentConfig();
+    const pipeline = createDefaultPipeline(config);
     
-    let enrichedCount = 0;
+    const results = await pipeline.enrichMany(
+      properties.map(p => p.id),
+      500
+    );
+
+    const enrichedCount = results.filter(r => r.enrichersRun.length > 0).length;
     
-    for (const property of properties) {
-      try {
-        const success = await this.enrichProperty(property.id);
-        if (success) enrichedCount++;
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } catch (error) {
-        log.error(`Failed to enrich property ${property.id}: ${error}`);
-      }
-    }
+    log.info(`Batch enrichment complete: ${enrichedCount}/${properties.length} properties enriched`);
     
     return enrichedCount;
   }
-  
+
   async getEnrichmentStats(): Promise<{
     total: number;
     enriched: number;
@@ -148,33 +93,24 @@ export class EnrichmentService {
     withCoordinates: number;
   }> {
     const db = await getDb();
-    
-    const [total] = await db
-      .select({ count: schema.properties.id })
+
+    const [stats] = await db
+      .select({
+        total: sql<number>`COUNT(*)`,
+        enriched: sql<number>`SUM(CASE WHEN ${schema.properties.enrichedAt} IS NOT NULL THEN 1 ELSE 0 END)`,
+        withCoordinates: sql<number>`SUM(CASE WHEN ${schema.properties.latitude} IS NOT NULL AND ${schema.properties.longitude} IS NOT NULL THEN 1 ELSE 0 END)`,
+      })
       .from(schema.properties);
-    
-    const [enriched] = await db
-      .select({ count: schema.properties.id })
-      .from(schema.properties)
-      .where(schema.properties.enrichedAt !== null);
-    
-    const [withCoords] = await db
-      .select({ count: schema.properties.id })
-      .from(schema.properties)
-      .where(and(
-        schema.properties.latitude !== null,
-        schema.properties.longitude !== null
-      ));
-    
-    const totalCount = total?.count || 0;
-    const enrichedCount = enriched?.count || 0;
-    const withCoordsCount = withCoords?.count || 0;
-    
+
+    const total = Number(stats?.total) || 0;
+    const enriched = Number(stats?.enriched) || 0;
+    const withCoordinates = Number(stats?.withCoordinates) || 0;
+
     return {
-      total: totalCount,
-      enriched: enrichedCount,
-      pending: withCoordsCount - enrichedCount,
-      withCoordinates: withCoordsCount,
+      total,
+      enriched,
+      pending: withCoordinates - enriched,
+      withCoordinates,
     };
   }
 }
